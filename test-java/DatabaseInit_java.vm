@@ -1,0 +1,44 @@
+#parse("/include/java_header.vm")
+##------------------------------------------------------
+#set( $entityNames = [] )
+#foreach( $entity in $model.allEntites )
+#if ( ! $entity.isJoinEntity() ) 
+#set($_ = $entityNames.add( $entity.name ) )
+#end
+#end
+##------------------------------------------------------
+package ${target.javaPackageFromFolder($TEST_SRC)};
+
+import javax.persistence.EntityManager;
+
+#foreach( $entityName in $entityNames )
+import ${ROOT_PKG}.jpa.data.${entityName}Data;
+#end
+
+/**
+ * Database initialization before unit tests
+ * 
+ * @author Telosys
+ *
+ */
+public class DatabaseInit {
+
+    public static void init(EntityManager em) {
+
+		// Disable referential integrity
+    	em.getTransaction().begin();
+    	em.createNativeQuery("SET REFERENTIAL_INTEGRITY FALSE").executeUpdate();
+    	em.getTransaction().commit();
+
+		// Init data for all entities
+#foreach( $entityName in $entityNames )
+		${entityName}Data.init(em);
+#end
+
+		// Enable referential integrity
+    	em.getTransaction().begin();
+    	em.createNativeQuery("SET REFERENTIAL_INTEGRITY TRUE").executeUpdate();
+    	em.getTransaction().commit();
+    }
+
+}

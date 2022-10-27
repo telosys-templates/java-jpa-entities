@@ -1,0 +1,88 @@
+## --------------------------------------------------
+#if ( $entity.isJoinEntity() )
+#cancel("No test class for join entity")
+#end
+## --------------------------------------------------
+#parse("include/init_var_entity.vm")
+#parse("/include/java_header.vm")
+##------------------------------------------------------
+package ${target.javaPackageFromFolder($TEST_SRC)};
+
+import static junit.framework.TestCase.assertNotNull;
+import static junit.framework.TestCase.assertNull;
+
+## Same package => no need to import 'Record' class //import $entity.name ;
+import ${ROOT_PKG}.jpa.tools.JpaTest;
+import org.junit.Test;
+
+#set( $refValues = $fn.buildValues($entity.attributes, 1) )
+#set( $values = $fn.buildValues($entity.attributes, 2) )
+public class ${entity.name}JpaTest extends JpaTest {
+	
+    @Override
+    public void initData() {
+		// DatabaseData.init(em) has been called before
+		// Initialize here other data required for the current test
+    }
+	
+    private ${entity.name} createEntity() {
+    	${entity.name} entity = new ${entity.name}();
+#foreach( $attribute in $entity.attributes )
+#if ( $attribute.isFK() )
+		entity.${attribute.setter}( $refValues.getValue($attribute.name) ) ;
+#else
+		entity.${attribute.setter}( $values.getValue($attribute.name) ) ;
+#end 
+#end
+    	return entity;
+    }
+
+    private Object getEntityKey(${entity.name} entity) {
+#if ( $entity.hasCompositePrimaryKey() )  
+		return new ${jpaEntityIdClass}( $fn.argumentsListWithGetter("entity", $entity.keyAttributes) );
+#else
+    	return entity.${entity.keyAttribute.getter}();
+#end
+    }
+
+    @Test
+    public void testPersistFindRemove() {
+    	
+    	${entity.name} entity = createEntity();
+    	Object key = getEntityKey(entity);
+
+    	// if entity doesn't exist yet
+    	if ( find(${entity.name}.class, key) == null ) {
+
+	    	// Create with 'persist'
+    		persistAndRefresh(entity);
+    	
+			// Find
+			${entity.name} entity2 = find(${entity.name}.class, key);
+			assertNotNull(entity2);
+        
+			// Remove
+			remove(entity2);
+			assertNull(find(${entity.name}.class, key));
+		}
+    }
+    
+    @Test
+    public void testMergeFindRemove() {
+    	
+    	${entity.name} entity = createEntity();
+    	Object key = getEntityKey(entity);
+
+    	// Create or update with 'merge'
+    	mergeAndRefresh(entity);
+    	
+    	// Find
+    	${entity.name} entity2 = find(${entity.name}.class, key);
+        assertNotNull(entity2);
+        
+    	// Remove
+    	remove(entity2);
+        assertNull(find(${entity.name}.class, key));
+    }
+
+}

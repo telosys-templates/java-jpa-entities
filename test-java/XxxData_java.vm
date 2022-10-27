@@ -1,0 +1,40 @@
+## --------------------------------------------------
+#if ( $entity.isJoinEntity() )
+#cancel("No test class for join entity")
+#end
+## --------------------------------------------------
+#parse("include/init_var_entity.vm")
+#parse("/include/java_header.vm")
+#set( $values = $fn.buildValues($entity.attributes, 1) )
+##------------------------------------------------------
+package ${target.javaPackageFromFolder($TEST_SRC)};
+
+import javax.persistence.EntityManager;
+
+import ${ROOT_PKG}.entities.${entity.name};
+
+public class ${entity.name}Data {
+
+	private static ${entity.name} entity ;
+
+    public static void init(EntityManager em) {
+    	// new entity instance
+    	${entity.name} newEntity = new ${entity.name}();
+#foreach( $attribute in $entity.attributes )
+## #if ( $attribute.isNotNull() )
+##			newEntity.${attribute.setter}( $values.getValue($attribute.name) ) ;
+## #end    		
+		newEntity.${attribute.setter}( $values.getValue($attribute.name) ) ;
+#end    		
+
+		// save entity in database
+        em.getTransaction().begin();
+        ${entity.name} managedEntity = (${entity.name}) em.merge(newEntity);
+        em.getTransaction().commit();
+        entity = managedEntity;
+    }
+	
+    public static ${entity.name} getEntity() {
+    	return entity;
+    }
+}
