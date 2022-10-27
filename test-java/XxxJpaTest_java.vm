@@ -44,7 +44,7 @@ public class ${entity.name}JpaTest extends JpaTest {
     	return entity.${entity.keyAttribute.getter}();
 #end
     }
-
+/***
     @Test
     public void testPersistFindRemove() {
     	
@@ -66,7 +66,7 @@ public class ${entity.name}JpaTest extends JpaTest {
 			assertNull(find(${entity.name}.class, key));
 		}
     }
-    
+***/
     @Test
     public void testMergeFindRemove() {
     	

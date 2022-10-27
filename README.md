@@ -10,7 +10,7 @@ This bundle generates the following Java files:
    - **{entity-name}Id.java** : JPA composite primary key (if any)  
    
  - in "**src/main/resources/META-INF**"  
-   - **persistence.xml** : the JPA configuration file
+   - **persistence.xml** : a JPA configuration file example
    
  - in "**src/test/java/{package}/entities**"  
    - **{entity-name}JpaTest.java** : JPA JUnit test case
