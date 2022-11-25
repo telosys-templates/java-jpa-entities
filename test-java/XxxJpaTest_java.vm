@@ -9,33 +9,57 @@
 package ${target.javaPackageFromFolder($TEST_SRC)};
 
 import static junit.framework.TestCase.assertNotNull;
-import static junit.framework.TestCase.assertNull;
 
-## Same package => no need to import 'Record' class //import $entity.name ;
-import ${ROOT_PKG}.jpa.tools.JpaTest;
+## import ${ROOT_PKG}.jpa.tools.JpaTest;
+import ${ROOT_PKG}.entities.tooling.JpaTest;
 import org.junit.Test;
 
-#set( $refValues = $fn.buildValues($entity.attributes, 1) )
-#set( $values = $fn.buildValues($entity.attributes, 2) )
+## macro to define referenced value for the given attribute
+#macro( setRefValue $attrib )
+#foreach( $fkPart in $attrib.fkParts )
+#if ( $foreach.count == 1 )
+## #set( $refEntity = $model.getEntityByClassName($fkPart.referencedEntityName) )
+## #set( $refAttribute = $refEntity.getAttributeByName($fkPart.referencedAttributeName) )
+## #set( $refValue = "${refEntity.name}JpaTest.getInitEntity().${refAttribute.getter}()" )
+## new (for test)
+#set( $n = $attrib.fkPartsCount )
+#set( $e = $fkPart.referencedEntity )
+#set( $a = $fkPart.referencedAttribute )
+##
+#set( $refValue = "${fkPart.referencedEntityName}JpaTest.getInitEntity().${fkPart.referencedAttribute.getter}()" )
+#end
+#end
+#end
+##
+#set( $values1 = $fn.buildValues($entity.attributes, 1) )
+#set( $values2 = $fn.buildValues($entity.attributes, 2) )
+##
 public class ${entity.name}JpaTest extends JpaTest {
-	
-    @Override
-    public void initData() {
-		// DatabaseData.init(em) has been called before
-		// Initialize here other data required for the current test
-    }
+
+    public static ${entity.name} getInitEntity() {
+#buildEntity($values1)
+	}
 	
     private ${entity.name} createEntity() {
+#buildEntity($values2)
+    }
+
+#macro( buildEntity $argValues )
     	${entity.name} entity = new ${entity.name}();
 #foreach( $attribute in $entity.attributes )
 #if ( $attribute.isFK() )
-		entity.${attribute.setter}( $refValues.getValue($attribute.name) ) ;
+#setRefValue ( $attribute )
+		entity.${attribute.setter}( $refValue ) ;
 #else
-		entity.${attribute.setter}( $values.getValue($attribute.name) ) ;
+#if ( ! $attribute.isAutoIncremented() )
+		entity.${attribute.setter}( $argValues.getValue($attribute.name) ) ;
+#else
+		// $attribute.name is auto-incremented => do not set
+#end
 #end 
 #end
     	return entity;
-    }
+#end
 
     private Object getEntityKey(${entity.name} entity) {
 #if ( $entity.hasCompositePrimaryKey() )  
@@ -44,10 +68,26 @@ public class ${entity.name}JpaTest extends JpaTest {
     	return entity.${entity.keyAttribute.getter}();
 #end
     }
-/***
+
     @Test
-    public void testPersistFindRemove() {
-    	
+    public void testFind() {
+#if ( $entity.hasAutoIncrementedKey() ) 
+		// NB: this entity has an AUTO-INCREMENTED PRIMARY KEY
+		// Cannot use a generic test with this kind of PK
+		// Create a specific test for this case
+#else    	    	
+    	${entity.name} e = find(${entity.name}.class, getEntityKey(getInitEntity()) );
+		assertNotNull(e);
+#end
+    }
+    
+    @Test
+    public void testPersistFind() {
+#if ( $entity.hasAutoIncrementedKey() ) 
+		// NB: this entity has an AUTO-INCREMENTED PRIMARY KEY
+		// Cannot use a generic test with this kind of PK
+		// Create a specific test for this case
+#else    	    	
     	${entity.name} entity = createEntity();
     	Object key = getEntityKey(entity);
 
@@ -61,15 +101,20 @@ public class ${entity.name}JpaTest extends JpaTest {
 			${entity.name} entity2 = find(${entity.name}.class, key);
 			assertNotNull(entity2);
         
-			// Remove
-			remove(entity2);
-			assertNull(find(${entity.name}.class, key));
+			// Remove (use only if no risk of referential integrity constraint violation)
+			// findAndRemove(${entity.name}.class, key);			
+			// assertNull(find(${entity.name}.class, key));
 		}
+#end
     }
-***/
+
     @Test
-    public void testMergeFindRemove() {
-    	
+    public void testMergeFind() {
+#if ( $entity.hasAutoIncrementedKey() ) 
+		// NB: this entity has an AUTO-INCREMENTED PRIMARY KEY
+		// Cannot use a generic test with this kind of PK
+		// Create a specific test for this case
+#else    	
     	${entity.name} entity = createEntity();
     	Object key = getEntityKey(entity);
 
@@ -80,9 +125,10 @@ public class ${entity.name}JpaTest extends JpaTest {
     	${entity.name} entity2 = find(${entity.name}.class, key);
         assertNotNull(entity2);
         
-    	// Remove
-    	remove(entity2);
-        assertNull(find(${entity.name}.class, key));
+		// Remove (use only if no risk of referential integrity constraint violation)
+		// findAndRemove(${entity.name}.class, key);			
+        // assertNull(find(${entity.name}.class, key));
+#end
     }
 
 }

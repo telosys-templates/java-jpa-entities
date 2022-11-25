@@ -13,7 +13,7 @@
 ## #set($env.collectionType = "java.util.Set")
 ## #set($env.collectionType = "java.util.Collection")
 ## ---------------------------
-## Define if "targetEntity" must be generated in @ManyToMany, @OneToMany, etc
+## Define if "targetEntity" must be generated in @ManyToMany or @OneToMany
 ## #set($jpa.genTargetEntity = true)
 ## ---------------------------
 ## Define default value (true or false) for "insertable" and "updatable" in "@JoinColumn"
@@ -71,9 +71,15 @@ $jpa.fieldAnnotations(4, $attribute)
     //--- ENTITY LINKS ( RELATIONSHIP )
 #foreach( $link in $entity.links )
 ## all annotations : Cardinality, JoinColumn(s), etc
+##--- with "insertable=false, updatable=false" if attribute already mapped
 $jpa.linkAnnotations(4, $link, $entity.attributes)
-## $jpa.linkCardinalityAnnotation(4, $link)
-## $jpa.linkJoinAnnotation(4, $link)
+##--- no "insertable=false, updatable=false" if already mapped
+## $jpa.linkAnnotations(4, $link)
+##--- Just @Cardinality annotation
+## $jpa.linkCardinalityAnnotation(4, $link) 
+##--- Just @JoinColumn(s) annotation(s)
+## $jpa.linkJoinAnnotation(4, $link) 
+## $jpa.linkJoinAnnotation(4, $link, $entity.attributes)
     private ${link.formattedFieldType(10)} $link.fieldName ; 
 
 #end

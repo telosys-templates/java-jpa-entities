@@ -12,7 +12,8 @@ package ${target.javaPackageFromFolder($TEST_SRC)};
 import javax.persistence.EntityManager;
 
 #foreach( $entityName in $entityNames )
-import ${ROOT_PKG}.jpa.data.${entityName}Data;
+## import ${ROOT_PKG}.jpa.data.${entityName}Data;
+import ${ROOT_PKG}.entities.${entityName}JpaTest;
 #end
 
 /**
@@ -23,22 +24,45 @@ import ${ROOT_PKG}.jpa.data.${entityName}Data;
  */
 public class DatabaseInit {
 
-    public static void init(EntityManager em) {
+    /**
+     * Set database initial state
+     * @param em
+     */
+    public static void initializeTablesData(EntityManager em) {
 
 		// Disable referential integrity
-    	em.getTransaction().begin();
-    	em.createNativeQuery("SET REFERENTIAL_INTEGRITY FALSE").executeUpdate();
-    	em.getTransaction().commit();
+    	execNativeQuery(em, "SET REFERENTIAL_INTEGRITY FALSE");
 
-		// Init data for all entities
+		// Initialize each table with one entity
 #foreach( $entityName in $entityNames )
-		${entityName}Data.init(em);
+		initTableWithEntity(em, ${entityName}JpaTest.getInitEntity());	
 #end
 
 		// Enable referential integrity
+    	execNativeQuery(em, "SET REFERENTIAL_INTEGRITY TRUE");
+    }
+
+	private static void execNativeQuery(EntityManager em, String sql) {
     	em.getTransaction().begin();
-    	em.createNativeQuery("SET REFERENTIAL_INTEGRITY TRUE").executeUpdate();
+    	em.createNativeQuery(sql).executeUpdate();
     	em.getTransaction().commit();
+    }
+    
+    private static void initTableWithEntity(EntityManager em, Object entity) {
+		execQuery(em, "DELETE FROM " + entity.getClass().getSimpleName());
+		persist(em, entity);
+    }
+    
+    private static void execQuery(EntityManager em, String sql) {
+    	em.getTransaction().begin();
+    	em.createQuery(sql).executeUpdate();
+    	em.getTransaction().commit();
+    }
+    
+    private static void persist(EntityManager em, Object entity) {
+        em.getTransaction().begin();
+        em.persist(entity);
+        em.getTransaction().commit();		
     }
 
 }

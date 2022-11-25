@@ -24,20 +24,35 @@ public abstract class JpaTest {
 	 */
 	private static final String PERSISTENCE_UNIT_NAME = "h2-test";
 	
+	private static final boolean LOG_FLAG = true;
+
 	protected static EntityManagerFactory emf;
-	protected static EntityManager em;
 
 	/**
-	 * Print message
+	 * Prints a log message
 	 * @param msg
 	 */
 	protected static void log(String msg) {
-		System.out.println(msg);
+		if (LOG_FLAG) {
+			System.out.println("[LOG-TEST] " + msg);
+			System.out.flush();
+		}
+	}
+	
+	private EntityManager createEntityManager()  {
+		log("  createEntityManager()...");
+		return emf.createEntityManager();
+	}
+
+	private void closeEntityManager(EntityManager em)  {
+		log("  closeEntityManager(em)...");
+		em.clear();
+		em.close();
 	}
 	
 	@BeforeClass
-	public static void setUpBeforeClass() throws Exception {
-		log("@BeforeClass : Initializing JPA env...");
+	public static void setUpBeforeClass() {
+		log("----- BeforeClass : Initializing JPA env...");
 		// All database tables are created before each test case class 
 		// thanks to 'persistence.xml' property "hibernate.hbm2ddl.auto" set to "create"
 		emf = Persistence.createEntityManagerFactory(PERSISTENCE_UNIT_NAME);
@@ -45,7 +60,7 @@ public abstract class JpaTest {
 
 	@AfterClass
 	public static void tearDownAfterClass() throws Exception {
-		log("@AfterClass : Closing JPA env...");
+		log("----- AfterClass : Closing JPA env...");
 		if ( emf != null ) {
 	        emf.close();
 		}
@@ -53,94 +68,18 @@ public abstract class JpaTest {
 
 	@Before
 	public void setUpBeforeTest() throws Exception {
-		log("@Before : em = emf.createEntityManager()...");
-		em = emf.createEntityManager();
-		log("@Before : DatabaseInit.init(em)...");
-		DatabaseInit.init(em);
-		log("@Before : initData()...");
-		initData();
-		log("@Before : em.clear()...");
-    	em.clear();
+		log("--- Before test : setUpBeforeTest()...");
+		EntityManager em = createEntityManager();
+		log("  DatabaseInit.init(em)...");
+		DatabaseInit.initializeTablesData(em);
+		closeEntityManager(em); 
+		log("  Database initialized and ready for test.");
 	}
 
 	@After
 	public void tearDownAfterTest() throws Exception {
-		if ( em != null ) {
-			log("@After : Closing Entity Manager...");
-			em.clear();
-	        em.close();
-		}
+		log("--- After test : tearDownAfterTest()...");
 	}
-
-	/**
-	 * Initialization method called before each test <br>
-	 * (to create referenced entities required for tests) 
-	 */
-	public abstract void initData();
-	
-    /**
-     * Call em.persist(entity) in a transaction and call em.refresh(entity)
-     * @param entity
-     */
-    protected void persistAndRefresh(Object entity) {
-    	log("persistAndRefresh("+entity+")");
-    	log(" persistAndRefresh : em.getTransaction().begin()");
-    	em.getTransaction().begin();
-    	log(" persistAndRefresh : em.persist(entity)");
-    	em.persist(entity);
-    	log(" persistAndRefresh : em.getTransaction().commit()");
-    	em.getTransaction().commit();
-    	log(" persistAndRefresh : em.refresh(entity)");
-    	em.refresh(entity); // Useful to refresh links => SQL SELECT 
-    }
-
-    /**
-     * Call em.merge(entity) in a transaction 
-     * @param entity
-     * @return the managed entity (object returned by JPA merge)
-     */
-    protected Object merge(Object entity) {
-    	log("merge("+entity+")");
-    	log(" merge : em.getTransaction().begin()");
-    	em.getTransaction().begin();
-    	log(" merge : em.merge(entity)");
-    	Object managedEntity = em.merge(entity);
-    	log(" merge : em.getTransaction().commit()");
-    	em.getTransaction().commit();
-    	return managedEntity;
-    }
-
-    /**
-     * Call em.merge(entity) in a transaction and call em.refresh(entity)
-     * @param entity
-     * @return the managed entity (object returned by JPA merge)
-     */
-    protected Object mergeAndRefresh(Object entity) {
-    	log("mergeAndRefresh("+entity+")");
-    	log(" mergeAndRefresh : em.getTransaction().begin()");
-    	em.getTransaction().begin();
-    	log(" mergeAndRefresh : em.merge(entity)");
-    	Object managedEntity = em.merge(entity);
-    	log(" mergeAndRefresh : em.getTransaction().commit()");
-    	em.getTransaction().commit();
-    	log(" mergeAndRefresh : em.refresh(managedEntity)");
-    	em.refresh(managedEntity); // Useful to refresh links => SQL SELECT 
-    	return managedEntity;
-    }
-
-    /**
-     * Call em.remove(entity) in a transaction 
-     * @param entity
-     */
-    protected void remove(Object entity) {
-    	log("remove("+entity+")");
-    	log(" remove : em.getTransaction().begin()");
-    	em.getTransaction().begin();
-    	log(" remove : em.remove(entity)");
-    	em.remove(entity);
-    	log(" remove : em.getTransaction().commit()");
-    	em.getTransaction().commit();
-    }
 
     /**
      * Call em.find(entityClass, pk)
@@ -150,14 +89,8 @@ public abstract class JpaTest {
      * @return
      */
     protected <T> T find(Class<T> entityClass, Object pk) {
-    	log("find : em.find(" + entityClass.getSimpleName() + ", " + pk +")");
-    	T entity = em.find(entityClass, pk);
-    	if ( entity != null ) {
-        	log(" find : found ");
-    	} else {
-        	log(" find : not found");
-    	}
-    	return entity ;
+    	log("find(" + entityClass.getSimpleName() + ", " + pk +")");
+    	return findAndPossiblyRefresh(entityClass, pk, false);
     }
     
     /**
@@ -168,15 +101,147 @@ public abstract class JpaTest {
      * @return
      */
     protected <T> T findAndRefresh(Class<T> entityClass, Object pk) {
-    	log("findAndRefresh : em.find(" + entityClass.getSimpleName() + ", " + pk +")");
+    	log("findAndRefresh(" + entityClass.getSimpleName() + ", " + pk +")");
+    	return findAndPossiblyRefresh(entityClass, pk, true);
+    }
+
+    /**
+     * Calls find then call refresh if flag is true
+     * @param <T>
+     * @param entityClass
+     * @param pk
+     * @param refreshFlag
+     * @return
+     */
+    private <T> T findAndPossiblyRefresh(Class<T> entityClass, Object pk, boolean refreshFlag) {
+		EntityManager em = createEntityManager();
     	T entity = em.find(entityClass, pk);
     	if ( entity != null ) {
-        	log(" findAndRefresh : found => em.refresh(entity)");
-        	em.refresh(entity); // Useful to refresh links => SQL SELECT 
+        	log("  em.find(entity,pk) : found ");
+        	if ( refreshFlag ) {
+            	log("  em.refresh(entity)");
+            	em.refresh(entity); // Useful to refresh links => SQL SELECT 
+        	}
     	} else {
-        	log(" findAndRefresh : not found");
+        	log("  em.find(entity,pk) : not found ");
     	}
+		closeEntityManager(em); 
     	return entity ;
+    }
+	
+    /**
+     * Call em.persist(entity) in a transaction
+     * @param entity
+     */
+    protected void persist(Object entity) {
+    	log("persist("+entity+")");
+    	persistAndPossiblyRefresh(entity, false);
+    }
+    
+    /**
+     * Call em.persist(entity) in a transaction then call em.refresh(entity)
+     * @param entity
+     */
+    protected void persistAndRefresh(Object entity) {
+    	log("persistAndRefresh("+entity+")");
+    	persistAndPossiblyRefresh(entity, true);
+    }
+    
+    /**
+     * Calls persist then call refresh if flag is true
+     * @param entity
+     * @param refreshFlag
+     */
+    private void persistAndPossiblyRefresh(Object entity, boolean refreshFlag) {
+    	log("persistAndRefresh("+entity+")");
+		EntityManager em = createEntityManager();
+    	log("  em.getTransaction().begin()");
+    	em.getTransaction().begin();
+    	log("  em.persist(entity)");
+    	em.persist(entity);
+    	log("  em.getTransaction().commit()");
+    	em.getTransaction().commit();
+    	// Refresh ?
+    	if ( refreshFlag ) {
+        	log("  em.refresh("+entity+")");
+        	em.refresh(entity); // Useful to refresh links => SQL SELECT 
+    	}
+		closeEntityManager(em); 
+    }
+
+    /**
+     * Calls em.merge(entity) in a transaction 
+     * @param entity
+     * @return the managed entity (object returned by JPA merge)
+     */
+    protected Object merge(Object entity) {
+    	log("merge("+entity+")");
+    	return mergeAndPossiblyRefresh(entity, false);
+    }
+    
+    /**
+     * Calls em.merge(entity) in a transaction and refresh the managed entity
+     * @param entity
+     * @return the managed entity (object returned by JPA merge and refreshed)
+     */
+    protected Object mergeAndRefresh(Object entity) {
+    	log("mergeAndRefresh("+entity+")");
+    	return mergeAndPossiblyRefresh(entity, false);
+    }
+    
+    /**
+     * Call merge then call refresh if flag is true
+     * @param entity
+     * @param refreshFlag
+     * @return
+     */
+    private Object mergeAndPossiblyRefresh(Object entity, boolean refreshFlag) {
+		EntityManager em = createEntityManager();
+    	// Merge
+    	log("  em.getTransaction().begin()");
+    	em.getTransaction().begin();
+    	log("  em.merge("+entity+")");
+    	Object managedEntity = em.merge(entity);
+    	log("  em.getTransaction().commit()");
+    	em.getTransaction().commit();
+    	// Refresh ?
+    	if ( refreshFlag ) {
+        	log("  em.refresh("+managedEntity+")");
+        	em.refresh(managedEntity); // Useful to refresh links => SQL SELECT 
+    	}
+		closeEntityManager(em); 
+    	return managedEntity;
+    }
+
+    /**
+     * Try to find an entity and call em.remove(entity) in a transaction 
+     * @param <T>
+     * @param entityClass
+     * @param pk
+     * @return true if found and removed, else false
+     */
+    protected <T> boolean findAndRemove(Class<T> entityClass, Object pk) {
+    	boolean removed = false;
+    	log("findAndRemove(" + entityClass.getSimpleName() + ", " + pk +")");
+		EntityManager em = createEntityManager();
+    	log("  em.find(entity,pk) ");
+		T entity = em.find(entityClass, pk);
+		if ( entity != null ) {
+        	log("  found ");
+        	log("  em.getTransaction().begin()");
+        	em.getTransaction().begin();
+        	log("  em.remove(entity)");
+        	em.remove(entity);
+        	log("  em.getTransaction().commit()");
+        	em.getTransaction().commit();
+        	removed = true;
+		}
+		else {
+        	log("  not found ");
+        	removed = false;
+		}
+		closeEntityManager(em); 
+		return removed;
     }
 
 }
