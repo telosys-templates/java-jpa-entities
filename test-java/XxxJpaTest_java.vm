@@ -71,8 +71,8 @@ public class ${entity.name}JpaTest extends JpaTest {
 
     @Test
     public void testFind() {
-#if ( $entity.hasAutoIncrementedKey() ) 
-		// NB: this entity has an AUTO-INCREMENTED PRIMARY KEY
+#if ( $entity.hasGeneratedKey() ) 
+		// NB: this entity has an GENERATED PRIMARY KEY
 		// Cannot use a generic test with this kind of PK
 		// Create a specific test for this case
 #else    	    	
@@ -83,8 +83,8 @@ public class ${entity.name}JpaTest extends JpaTest {
     
     @Test
     public void testPersistFind() {
-#if ( $entity.hasAutoIncrementedKey() ) 
-		// NB: this entity has an AUTO-INCREMENTED PRIMARY KEY
+#if ( $entity.hasGeneratedKey() ) 
+		// NB: this entity has an GENERATED PRIMARY KEY
 		// Cannot use a generic test with this kind of PK
 		// Create a specific test for this case
 #else    	    	
@@ -110,8 +110,8 @@ public class ${entity.name}JpaTest extends JpaTest {
 
     @Test
     public void testMergeFind() {
-#if ( $entity.hasAutoIncrementedKey() ) 
-		// NB: this entity has an AUTO-INCREMENTED PRIMARY KEY
+#if ( $entity.hasGeneratedKey() ) 
+		// NB: this entity has an GENERATED PRIMARY KEY
 		// Cannot use a generic test with this kind of PK
 		// Create a specific test for this case
 #else    	

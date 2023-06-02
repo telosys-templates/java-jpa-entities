@@ -50,7 +50,7 @@ public class DatabaseInit {
     
     private static void initTableWithEntity(EntityManager em, Object entity) {
 		execQuery(em, "DELETE FROM " + entity.getClass().getSimpleName());
-		persist(em, entity);
+		initEntity(em, entity);
     }
     
     private static void execQuery(EntityManager em, String sql) {
@@ -59,9 +59,9 @@ public class DatabaseInit {
     	em.getTransaction().commit();
     }
     
-    private static void persist(EntityManager em, Object entity) {
+    private static void initEntity(EntityManager em, Object entity) {
         em.getTransaction().begin();
-        em.persist(entity);
+        em.merge(entity);
         em.getTransaction().commit();		
     }
 

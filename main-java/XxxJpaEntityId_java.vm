@@ -72,6 +72,7 @@ $java.hashCodeMethod($jpaEntityIdClass, $entity.keyAttributes )## no EOL
 
     //--- toString METHOD
 	@Override
-$java.toStringMethod($entity.keyAttributes, 4)## no EOL
+## $java.toStringMethod($entity.keyAttributes, 4)## no EOL
+$java.toStringMethod($entity, $entity.keyAttributes, 1)
 
 }
